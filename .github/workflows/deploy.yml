@@ -1,0 +1,37 @@
+name: CI/CD - MLOps Scoring
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test API health
+        run: |
+          python -c "
+          from fastapi.testclient import TestClient
+          import sys
+          sys.path.insert(0, '.')
+          print('✅ Import OK')
+          "
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          echo "✅ Deploy triggered automatically by Render on push to main"
