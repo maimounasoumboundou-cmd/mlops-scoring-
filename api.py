@@ -1,21 +1,26 @@
 # api.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import numpy as np
 import pandas as pd
 
-# ─────────────────────────────────────────
-# 1. CHARGEMENT DU MODÈLE ET SCALER
-# ─────────────────────────────────────────
+# Chargement modèle et scaler
 model  = joblib.load("models/RandomForest.pkl")
 scaler = joblib.load("models/scaler.pkl")
 
 app = FastAPI(title="API Scoring Crédit", version="1.0")
 
-# ─────────────────────────────────────────
-# 2. SCHÉMA D'ENTRÉE
-# ─────────────────────────────────────────
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class ClientData(BaseModel):
     RevolvingUtilizationOfUnsecuredLines: float
     age: int
@@ -28,19 +33,13 @@ class ClientData(BaseModel):
     NumberOfTime60_89DaysPastDueNotWorse: int
     NumberOfDependents: int
 
-# ─────────────────────────────────────────
-# 3. FEATURE ENGINEERING (même que prepare_data.py)
-# ─────────────────────────────────────────
 def build_features(data: ClientData) -> pd.DataFrame:
     d = data.dict()
-
-    # Renommer pour correspondre aux colonnes originales
     d["NumberOfTime30-59DaysPastDueNotWorse"] = d.pop("NumberOfTime30_59DaysPastDueNotWorse")
     d["NumberOfTime60-89DaysPastDueNotWorse"] = d.pop("NumberOfTime60_89DaysPastDueNotWorse")
 
     df = pd.DataFrame([d])
 
-    # Nouvelles features
     df["TotalLatePayments"] = (
         df["NumberOfTime30-59DaysPastDueNotWorse"] +
         df["NumberOfTime60-89DaysPastDueNotWorse"] +
@@ -48,11 +47,21 @@ def build_features(data: ClientData) -> pd.DataFrame:
     )
     df["DebtToIncome"]       = df["DebtRatio"] / (df["MonthlyIncome"] + 1)
     df["IncomePerDependent"] = df["MonthlyIncome"] / (df["NumberOfDependents"] + 1)
-    df["AgeGroup"]           = pd.cut(df["age"], bins=[18, 30, 45, 60, 100],
-                                       labels=[0, 1, 2, 3]).astype(int)
-    df["HighUtilization"]    = (df["RevolvingUtilizationOfUnsecuredLines"] > 0.75).astype(int)
 
-    # Forcer le bon ordre des colonnes (même ordre que pendant l'entraînement)
+    # Correction AgeGroup — gérer les ages hors bornes
+    age = int(df["age"].iloc[0])
+    if age <= 30:
+        age_group = 0
+    elif age <= 45:
+        age_group = 1
+    elif age <= 60:
+        age_group = 2
+    else:
+        age_group = 3
+    df["AgeGroup"] = age_group
+
+    df["HighUtilization"] = (df["RevolvingUtilizationOfUnsecuredLines"] > 0.75).astype(int)
+
     colonnes = [
         "RevolvingUtilizationOfUnsecuredLines", "age",
         "NumberOfTime30-59DaysPastDueNotWorse", "DebtRatio",
@@ -64,26 +73,17 @@ def build_features(data: ClientData) -> pd.DataFrame:
     ]
     return df[colonnes]
 
-# ─────────────────────────────────────────
-# 4. ENDPOINTS
-# ─────────────────────────────────────────
 @app.get("/")
 def root():
     return {"message": "API Scoring Crédit — opérationnelle ✅"}
 
 @app.post("/predict")
 def predict(data: ClientData):
-    # Construction des features
     df = build_features(data)
-
-    # Normalisation
     df_scaled = scaler.transform(df)
+    prediction  = int(model.predict(df_scaled)[0])
+    probabilite = float(model.predict_proba(df_scaled)[0][1])
 
-    # Prédiction
-    prediction    = int(model.predict(df_scaled)[0])
-    probabilite   = float(model.predict_proba(df_scaled)[0][1])
-
-    # Interprétation
     if probabilite < 0.3:
         risque = "FAIBLE"
     elif probabilite < 0.6:
@@ -92,10 +92,10 @@ def predict(data: ClientData):
         risque = "ÉLEVÉ"
 
     return {
-        "prediction":   prediction,
-        "probabilite":  round(probabilite, 4),
-        "risque":       risque,
-        "interpretation": "Défaut probable" if prediction == 1 else "Pas de défaut prévu"
+        "prediction":      prediction,
+        "probabilite":     round(probabilite, 4),
+        "risque":          risque,
+        "interpretation":  "Défaut probable" if prediction == 1 else "Pas de défaut prévu"
     }
 
 @app.get("/health")
