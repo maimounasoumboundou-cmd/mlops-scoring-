@@ -1,0 +1,23 @@
+artifact_path: file:///C:/Users/HP/Desktop/mlops-scoring/mlruns/3/models/m-e7f6252a4e8f4e708b6ca105779e07ae/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.11.0
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.7.2
+    skops_trusted_types: null
+mlflow_version: 3.14.0
+model_id: m-e7f6252a4e8f4e708b6ca105779e07ae
+model_size_bytes: 18349013
+model_uuid: m-e7f6252a4e8f4e708b6ca105779e07ae
+prompts: null
+run_id: f13b179d66df4ce8a368058733115785
+utc_time_created: '2026-06-29 17:51:19.175711'

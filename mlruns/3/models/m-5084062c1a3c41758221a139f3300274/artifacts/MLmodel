@@ -1,0 +1,22 @@
+artifact_path: file:///C:/Users/HP/Desktop/mlops-scoring/mlruns/3/models/m-5084062c1a3c41758221a139f3300274/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.11.0
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: ubj
+    xgb_version: 3.2.0
+mlflow_version: 3.14.0
+model_id: m-5084062c1a3c41758221a139f3300274
+model_size_bytes: 466851
+model_uuid: m-5084062c1a3c41758221a139f3300274
+prompts: null
+run_id: 79553c5387e646ab832db5cd971ac2fa
+utc_time_created: '2026-06-29 18:16:36.887700'
